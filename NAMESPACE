@@ -71,6 +71,8 @@ export(
 	"readMSIData",
 	"risk.colors")
 
+export("runCardinal")
+
 export(
 	"print.summary.iSet",
 	"print.summary.PCA",
