@@ -3,10 +3,12 @@ require(shiny)
 
 shinyUI(navbarPage("Cardinal",
 
+	#### Data Page ####
+
 	tabPanel("Data",
 		wellPanel(
 
-			#### main dataset ####
+			#### Main Panel ####
 
 			fluidRow(
 				column(3,
@@ -42,13 +44,22 @@ shinyUI(navbarPage("Cardinal",
 			)
 		),
 
-		#### control panels ####
+		#### Control Panels ####
 
 		tabsetPanel(type="tabs",
+
+			#### Explore Tab ####
+
 			tabPanel("Explore",
 				navlistPanel(
+
+					#### Ion Image ####
+
 					tabPanel("Ion Image",
 						tabsetPanel(type="tabs",
+
+							#### Ion Image Display Options ####
+
 							tabPanel("Display Options",
 								column(6,
 									selectInput("ColorRegions", "Color Regions",
@@ -68,6 +79,10 @@ shinyUI(navbarPage("Cardinal",
 										choices=c("none", "gaussian", "adaptive"))
 								)
 							),
+
+
+							#### Select Ion Image Regions ####
+
 							tabPanel("Select Regions",
 								column(6,
 									uiOutput("SelectIonImageRegions"),
@@ -81,6 +96,9 @@ shinyUI(navbarPage("Cardinal",
 									actionButton("PreviewIonImageAnnotations", "Preview")
 								)
 							),
+
+							#### Download Ion Image ####
+
 							tabPanel("Download",
 								selectInput("IonImageFormat", "Format",
 									choices=c("pdf", "png", "jpeg", "tiff")),
@@ -99,11 +117,17 @@ shinyUI(navbarPage("Cardinal",
 							)
 						)
 					),
+
+					#### Mass Spectrum ####
+
 					tabPanel("Mass Spectrum",
 						tabsetPanel(type="tabs",
 							tabPanel("Display Options",
 								uiOutput("Color")
 							),
+
+							#### Select Mass Spectrum Regions ####
+
 							tabPanel("Select Regions",
 								column(6,
 									uiOutput("SelectMassSpectrumRegions"),
@@ -117,6 +141,10 @@ shinyUI(navbarPage("Cardinal",
 									actionButton("PreviewMassSpectrumAnnotations", "Preview")
 								)
 							),
+
+
+							#### Download Mass Spectrum ####
+
 							tabPanel("Download",
 								selectInput("MassSpectrumFormat", "Format",
 									choices=c("pdf", "png", "jpeg", "tiff")),
@@ -137,11 +165,47 @@ shinyUI(navbarPage("Cardinal",
 					)
 				)
 			),
+
+			#### Process Tab ####
+
 			tabPanel("Process",
 				navlistPanel(
 					"Spectral processing",
-					tabPanel("Normalize"),
-					tabPanel("Smooth Signal"),
+					tabPanel("Normalize",
+						selectizeInput("NormalizeMethod", "Method",
+							choices="tic",
+							options=list(create=TRUE)),
+						actionButton("NormalizeApply", "Apply"),
+						actionButton("NormalizePreview", "Preview"),
+						hr(),
+						wellPanel(
+							uiOutput("NormalizeCall"),
+							helpText("Warning: This is the exact function
+								that will be applied to the dataset. Edit
+								at your own risk.")
+						)
+					),
+					tabPanel("Smooth Signal",
+						selectizeInput("SmoothSignalMethod", "Method",
+							choices=c("gaussian", "sgolay", "ma"),
+							options=list(create=TRUE)),
+						conditionalPanel(
+							condition=paste("input.SmoothSignalMethod == 'gaussian'",
+								"|| input.SmoothSignalMethod == 'sgolay'",
+								"|| input.SmoothSignalMethod == 'ma'"),
+							numericInput("SmoothSignalWindow", "Window",
+								min=3, max=101, value=5, step=2)
+						),
+						actionButton("SmoothSignalApply", "Apply"),
+						actionButton("SmoothSignalPreview", "Preview"),
+						hr(),
+						wellPanel(
+							uiOutput("SmoothSignalCall"),
+							helpText("Warning: This is the exact function
+								that will be applied to the dataset. Edit
+								at your own risk.")
+						)
+					),
 					tabPanel("Reduce Baseline"),
 					tabPanel("Peak Pick"),
 					"Additional processing",
@@ -151,6 +215,9 @@ shinyUI(navbarPage("Cardinal",
 					tabPanel("Standardize Samples")
 				)
 			),
+
+			#### Analyze Tab ####
+
 			tabPanel("Analyze",
 				navlistPanel(
 					"Multivariate",
@@ -163,6 +230,9 @@ shinyUI(navbarPage("Cardinal",
 					tabPanel("Spatial Shrunken Centroids")
 				)
 			),
+
+			#### Results Tab ####
+
 			tabPanel("Results",
 					selectInput("Results",
 						"Results",
@@ -171,6 +241,8 @@ shinyUI(navbarPage("Cardinal",
 			)
 		)
 	),
+
+	#### Workspace Page ####
 
 	tabPanel("Workspace",
 		fluidRow(
