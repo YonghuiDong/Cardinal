@@ -5,7 +5,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 
-#include "utils.hpp"
+#include "utils.h"
 
 // defines copied from Analyze 7.5 documentation
 
@@ -172,7 +172,7 @@ extern "C"
 			SET_STRING_ELT(endian, 0, mkChar("native"));
 		} else {
 			SET_STRING_ELT(endian, 0, mkChar("swap"));
-			swap_hdr(&header);
+			// swap_hdr(&header);
 		}
 
 		// assign header_key elements
