@@ -19,6 +19,14 @@ setMethod("peakFilter", "MSImageSet",
 		.time.start()
 		feature <- featureApply(object, .fun=fun, .pixel=pixel, ...,
 			.use.names=FALSE, .simplify=TRUE)
+		if ( plot ) {
+			for ( .Index in pixel ) {
+				wrap(plot(object, pixel=.Index, lwd=2, ...),
+				..., signature=fun)
+				wrap(abline(v=mz(object)[feature], lty=3, lwd=1.5, col="red", ...),
+					..., signature=fun)
+			}
+		}
 		object <- object[feature, pixel]
 		.message("peakFilter: Done.")
 		.time.stop()

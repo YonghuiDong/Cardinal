@@ -26,7 +26,7 @@ shinyUI(navbarPage("Cardinal",
 			),
 			fluidRow(
 				column(6,
-					plotOutput("IonImage_0", clickId="IonImageClick_0"),
+					plotOutput("IonImage_0", click="IonImageClick_0"),
 					fluidRow(
 						column(6,
 							selectInput("Sample_0", "Sample", choices="<None>")
@@ -38,7 +38,7 @@ shinyUI(navbarPage("Cardinal",
 					)
 				),
 				column(6,
-					plotOutput("MassSpectrum_0", clickId="MassSpectrumClick_0"),
+					plotOutput("MassSpectrum_0", click="MassSpectrumClick_0"),
 					uiOutput("MassRange_0")
 				)
 			)
@@ -206,10 +206,78 @@ shinyUI(navbarPage("Cardinal",
 								at your own risk.")
 						)
 					),
-					tabPanel("Reduce Baseline"),
-					tabPanel("Peak Pick"),
+					tabPanel("Reduce Baseline",
+						selectizeInput("ReduceBaselineMethod", "Method",
+							choices=c("median"),
+							options=list(create=TRUE)),
+						conditionalPanel(
+							condition="input.ReduceBaselineMethod == 'median'",
+							numericInput("ReduceBaselineBlocks", "Blocks",
+								min=5, max=10000, value=500, step=10)
+						),
+						actionButton("ReduceBaselineApply", "Apply"),
+						actionButton("ReduceBaselinePreview", "Preview"),
+						hr(),
+						wellPanel(
+							uiOutput("ReduceBaselineCall"),
+							helpText("Warning: This is the exact function
+								that will be applied to the dataset. Edit
+								at your own risk.")
+						)
+					),
+					tabPanel("Peak Pick",
+						selectizeInput("PeakPickMethod", "Method",
+							choices=c("simple", "adaptive", "limpic"),
+							options=list(create=TRUE)),
+						conditionalPanel(
+							condition=paste("input.PeakPickMethod == 'simple'",
+								"|| input.PeakPickMethod == 'adaptive'",
+								"|| input.PeakPickMethod == 'limpic'"),
+							numericInput("PeakPickSNR", "SNR",
+								min=1, max=100, value=6, step=1),
+							numericInput("PeakPickWindow", "Window",
+								min=3, max=101, value=5, step=2),
+							numericInput("PeakPickBlocks", "Blocks",
+								min=5, max=10000, value=100, step=10)
+						),
+						actionButton("PeakPickApply", "Apply"),
+						actionButton("PeakPickPreview", "Preview"),
+						hr(),
+						wellPanel(
+							uiOutput("PeakPickCall"),
+							helpText("Warning: This is the exact function
+								that will be applied to the dataset. Edit
+								at your own risk.")
+						)
+					),
 					"Additional processing",
-					tabPanel("Peak Align"),
+					tabPanel("Peak Align",
+						selectizeInput("PeakAlignMethod", "Method",
+							choices=c("diff", "DP"),
+							options=list(create=TRUE)),
+						uiOutput("PeakAlignReference"),
+						conditionalPanel(
+							condition="input.PeakAlignMethod == 'diff'",
+							numericInput("PeakAlignDiffMax", "Diff Max",
+								min=1, max=10000, value=200, step=1),
+							selectInput("PeakAlignUnits", "Units",
+								choices=c("'ppm'", "'mz'"))
+						),
+						conditionalPanel(
+							condition="input.PeakAlignMethod == 'DP'",
+							numericInput("PeakAlignGap", "Gap",
+								min=-1000, max=1000, value=0, step=1)
+						),
+						actionButton("PeakAlignApply", "Apply"),
+						actionButton("PeakAlignPreview", "Preview"),
+						hr(),
+						wellPanel(
+							uiOutput("PeakAlignCall"),
+							helpText("Warning: This is the exact function
+								that will be applied to the dataset. Edit
+								at your own risk.")
+						)
+					),
 					tabPanel("Peak Filter"),
 					tabPanel("Reduce Dimension"),
 					tabPanel("Standardize Samples")

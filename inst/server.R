@@ -89,7 +89,8 @@ shinyServer(function(input, output, session) {
 	})
 
 	zlim_0 <- reactive({
-		zrange <- range(spectra(object_0())[feature_0(),])
+		zrange <- range(spectra(object_0())[feature_0(),
+			pData(isolate(object_0()))$sample %in% input$Sample_0])
 		diff(zrange) * input$ColorRegionsRange / 100 + min(zrange)
 	})
 
@@ -224,11 +225,16 @@ shinyServer(function(input, output, session) {
 		} else if ( isolate(modal$Process != "none") ) {
 			if ( isolate(modal$Process == "normalize") ) {
 				thecall <- isolate(input$NormalizeCall)
-				cl <- parse(text=thecall)[[1]]
 			} else if ( isolate(modal$Process == "smooth-signal") ) {
 				thecall <- isolate(input$SmoothSignalCall)
-				cl <- parse(text=thecall)[[1]]
+			} else if ( isolate(modal$Process == "reduce-baseline") ) {
+				thecall <- isolate(input$ReduceBaselineCall)
+			} else if ( isolate(modal$Process == "peak-pick") ) {
+				thecall <- isolate(input$PeakPickCall)
+			} else if ( isolate(modal$Process == "peak-align") ) {
+				thecall <- isolate(input$PeakAlignCall)
 			}
+			cl <- parse(text=thecall)[[1]]
 			cl[["pixel"]] <- pixel_0()
 			cl[["xlim"]] <- isolate(input$MassRange_0)
 			cl[["plot"]] <- TRUE
@@ -599,8 +605,84 @@ shinyServer(function(input, output, session) {
 	})
 
 	observe({
-		if ( input$SmoothSignalPreview	> 0 ) {
+		if ( input$SmoothSignalPreview > 0 ) {
 			isolate(modal$Process <- "smooth-signal")
+			isolate(trigger$MassSpectrum <- trigger$MassSpectrum + 1)
+		}
+	})
+
+	#### Reduce Baseline ####
+	##---------------------
+
+	output$ReduceBaselineCall <- renderUI({
+		args <- input$Dataset_0
+		args <- c(args, paste0("method='", input$ReduceBaselineMethod, "'"))
+		if ( input$ReduceBaselineMethod %in% c("median") )
+			args <- c(args, paste0("blocks=", input$ReduceBaselineBlocks))
+		args <- do.call(paste, as.list(c(args, sep=", ")))
+		textInput("ReduceBaselineCall", "R function that will be applied:",
+			value=paste0("reduceBaseline(", args, ")"))
+	})
+
+	observe({
+		if ( input$ReduceBaselinePreview > 0 ) {
+			isolate(modal$Process <- "reduce-baseline")
+			isolate(trigger$MassSpectrum <- trigger$MassSpectrum + 1)
+		}
+	})
+
+	#### Peak Pick ####
+	##---------------------
+
+	output$PeakPickCall <- renderUI({
+		args <- input$Dataset_0
+		args <- c(args, paste0("method='", input$PeakPickMethod, "'"))
+		if ( input$PeakPickMethod %in% c("simple", "adaptive", "limpic") ) {
+			args <- c(args, paste0("SNR=", input$PeakPickSNR))
+			args <- c(args, paste0("window=", input$PeakPickWindow))
+			args <- c(args, paste0("blocks=", input$PeakPickBlocks))
+		}
+		args <- do.call(paste, as.list(c(args, sep=", ")))
+		textInput("PeakPickCall", "R function that will be applied:",
+			value=paste0("peakPick(", args, ")"))
+	})
+
+	observe({
+		if ( input$PeakPickPreview > 0 ) {
+			isolate(modal$Process <- "peak-pick")
+			isolate(trigger$MassSpectrum <- trigger$MassSpectrum + 1)
+		}
+	})
+
+	#### Peak Align ####
+	##---------------------
+
+	output$PeakAlignReference <- renderUI({
+		choices1 <- unlist(eapply(globalenv(), is, "MSImageSet"))
+		choices2 <- unlist(eapply(globalenv(), is, "numeric"))
+		choices <- c(choices1, choices2)
+		choices <- c("<None>", names(choices)[choices])
+		selectInput("PeakAlignReference", "Reference", choices=choices)
+	})
+
+	output$PeakAlignCall <- renderUI({
+		args <- input$Dataset_0
+		if ( !is.null(input$PeakAlignReference) && input$PeakAlignReference != "<None>" )
+			args <- c(args, paste0("ref=", input$PeakAlignReference))
+		args <- c(args, paste0("method='", input$PeakAlignMethod, "'"))
+		if ( input$PeakAlignMethod %in% "diff" ) {
+			args <- c(args, paste0("diff.max=", input$PeakAlignDiffMax))
+			args <- c(args, paste0("units=", input$PeakAlignUnits))
+		} else if ( input$PeakAlignMethod %in% "DP" )
+			args <- c(args, paste0("gap=", input$PeakAlignGap))
+		args <- do.call(paste, as.list(c(args, sep=", ")))
+		textInput("PeakAlignCall", "R function that will be applied:",
+			value=paste0("peakAlign(", args, ")"))
+	})
+
+	observe({
+		if ( input$PeakAlignPreview > 0 ) {
+			isolate(modal$Process <- "peak-align")
 			isolate(trigger$MassSpectrum <- trigger$MassSpectrum + 1)
 		}
 	})
