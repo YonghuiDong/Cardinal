@@ -10,24 +10,14 @@ setMethod("peakFilter", "MSImageSet",
 	{
 		if ( !centroided(object) )
 			.stop("peakFilter: 'object' is not centroided. Run 'peakAlign' on it first.")
-		if ( plot ) {
-			.warning("peakFilter: Plotting not currently supported for 'peakFilter'.")
-		}
 		fun <- peakFilter.method(method)
 		prochistory(processingData(object)) <- .history()
 		.message("peakFilter: Using method = ", match.method(method))
 		.time.start()
-		feature <- featureApply(object, .fun=fun, .pixel=pixel, ...,
-			.use.names=FALSE, .simplify=TRUE)
-		if ( plot ) {
-			for ( .Index in pixel ) {
-				wrap(plot(object, pixel=.Index, lwd=2, ...),
-				..., signature=fun)
-				wrap(abline(v=mz(object)[feature], lty=3, lwd=1.5, col="red", ...),
-					..., signature=fun)
-			}
-		}
-		object <- object[feature, pixel]
+		feature <- featureApply(object, .fun=fun, ..., .use.names=FALSE, .simplify=TRUE)
+		object <- object[feature,pixel]
+		if ( plot )
+			wrap(plot(object, pixel=seq_len(ncol(object)), ...), ..., signature=fun)
 		.message("peakFilter: Done.")
 		.time.stop()
 		object

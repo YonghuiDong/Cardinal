@@ -278,9 +278,83 @@ shinyUI(navbarPage("Cardinal",
 								at your own risk.")
 						)
 					),
-					tabPanel("Peak Filter"),
-					tabPanel("Reduce Dimension"),
-					tabPanel("Standardize Samples")
+					tabPanel("Peak Filter",
+						selectizeInput("PeakFilterMethod", "Method",
+							choices=c("freq"),
+							options=list(create=TRUE)),
+						conditionalPanel(
+							condition="input.PeakFilterMethod == 'freq'",
+							numericInput("PeakFilterFreqMin", "Freq Min",
+								min=0, max=10000, value=1),
+							selectInput("PeakFilterFreqType", NULL,
+								choices=c("% of Pixels", "Exactly"))
+						),
+						actionButton("PeakFilterApply", "Apply"),
+						actionButton("PeakFilterPreview", "Preview"),
+						hr(),
+						wellPanel(
+							uiOutput("PeakFilterCall"),
+							helpText("Warning: This is the exact function
+								that will be applied to the dataset. Edit
+								at your own risk.")
+						)
+					),
+					tabPanel("Reduce Dimension",
+						selectizeInput("ReduceDimensionMethod", "Method",
+							choices=c("peaks", "bin", "resample"),
+							options=list(create=TRUE)),
+						conditionalPanel(
+							condition="input.ReduceDimensionMethod == 'peaks'",
+							uiOutput("ReduceDimensionPeakReference"),
+							selectInput("ReduceDimensionPeakType", "Type",
+								choices=c("'height'", "'area'"))
+						),
+						conditionalPanel(
+							condition="input.ReduceDimensionMethod == 'bin'",
+							numericInput("ReduceDimensionBinWidth", "Width",
+								min=0, max=100, value=1),
+							numericInput("ReduceDimensionBinOffset", "Offset",
+								min=-1, max=1, value=0, step=0.1),
+							selectInput("ReduceDimensionBinFunction", "Function",
+								choices=c("sum", "mean", "median"))
+						),
+						conditionalPanel(
+							condition="input.ReduceDimensionMethod == 'resample'",
+							numericInput("ReduceDimensionResampleStep", "Step",
+								min=0, max=100, value=1),
+							numericInput("ReduceDimensionResampleOffset", "Offset",
+								min=-1, max=1, value=0, step=0.1)
+						),
+						actionButton("ReduceDimensionApply", "Apply"),
+						actionButton("ReduceDimensionPreview", "Preview"),
+						hr(),
+						wellPanel(
+							uiOutput("ReduceDimensionCall"),
+							helpText("Warning: This is the exact function
+								that will be applied to the dataset. Edit
+								at your own risk.")
+						)
+					),
+					tabPanel("Standardize Samples",
+						selectizeInput("StandardizeSamplesMethod", "Method",
+							choices=c("sum"),
+							options=list(create=TRUE)),
+						conditionalPanel(
+							condition="input.StandardizeSamplesMethod == 'sum'",
+							numericInput("StandardizeSamplesSum", "Sum",
+								min=1, max=10000, value=100),
+							selectInput("StandardizeSamplesSumType", NULL,
+								choices=c("% of Pixels", "Exactly"))
+						),
+						actionButton("StandardizeSamplesApply", "Apply"),
+						hr(),
+						wellPanel(
+							uiOutput("StandardizeSamplesCall"),
+							helpText("Warning: This is the exact function
+								that will be applied to the dataset. Edit
+								at your own risk.")
+						)
+					)
 				)
 			),
 
@@ -292,9 +366,8 @@ shinyUI(navbarPage("Cardinal",
 					tabPanel("PCA"),
 					tabPanel("PLS"),
 					tabPanel("O-PLS"),
-					"Clustering",
+					"Clustering + Classification",
 					tabPanel("Spatial K-Means"),
-					"Classification",
 					tabPanel("Spatial Shrunken Centroids")
 				)
 			),

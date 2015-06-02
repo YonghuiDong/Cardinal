@@ -233,6 +233,10 @@ shinyServer(function(input, output, session) {
 				thecall <- isolate(input$PeakPickCall)
 			} else if ( isolate(modal$Process == "peak-align") ) {
 				thecall <- isolate(input$PeakAlignCall)
+			} else if ( isolate(modal$Process == "peak-filter") ) {
+				thecall <- isolate(input$PeakFilterCall)
+			} else if ( isolate(modal$Process == "reduce-dimension") ) {
+				thecall <- isolate(input$ReduceDimensionCall)
 			}
 			cl <- parse(text=thecall)[[1]]
 			cl[["pixel"]] <- pixel_0()
@@ -687,6 +691,88 @@ shinyServer(function(input, output, session) {
 		}
 	})
 
+	#### Peak Filter ####
+	##-------------------
+
+	output$PeakFilterCall <- renderUI({
+		args <- input$Dataset_0
+		args <- c(args, paste0("method='", input$PeakFilterMethod, "'"))
+		if ( input$PeakFilterMethod %in% c("freq") ) {
+			if ( input$PeakFilterFreqType == "% of Pixels" ) {
+				args <- c(args, paste0("freq.min=",
+					input$PeakFilterFreqMin / 100, " * ncol(", input$Dataset_0, ")"))
+			} else {
+				args <- c(args, paste0("freq.min=", input$PeakFilterFreqMin))
+			}
+		}
+		args <- do.call(paste, as.list(c(args, sep=", ")))
+		textInput("PeakFilterCall", "R function that will be applied:",
+			value=paste0("peakFilter(", args, ")"))
+	})
+
+	observe({
+		if ( input$PeakFilterPreview > 0 ) {
+			isolate(modal$Process <- "peak-filter")
+			isolate(trigger$MassSpectrum <- trigger$MassSpectrum + 1)
+		}
+	})
+
+	#### Reduce Dimension ####
+	##------------------------
+
+	output$ReduceDimensionPeakReference <- renderUI({
+		choices1 <- unlist(eapply(globalenv(), is, "MSImageSet"))
+		choices2 <- unlist(eapply(globalenv(), is, "numeric"))
+		choices <- c(choices1, choices2)
+		choices <- c("<None>", names(choices)[choices])
+		selectInput("ReduceDimensionPeakReference", "Reference", choices=choices)
+	})
+
+	output$ReduceDimensionCall <- renderUI({
+		args <- input$Dataset_0
+		args <- c(args, paste0("method='", input$ReduceDimensionMethod, "'"))
+		if ( input$ReduceDimensionMethod %in% c("peaks") ) {
+			if ( !is.null(input$ReduceDimensionPeakReference) && input$ReduceDimensionPeakReference != "<None>" )
+				args <- c(args, paste0("ref=", input$ReduceDimensionPeakReference))
+			args <- c(args, paste0("type=", input$ReduceDimensionPeakType))
+		} else if ( input$ReduceDimensionMethod %in% c("bin") ) {
+			args <- c(args, paste0("width=", input$ReduceDimensionBinWidth))
+			args <- c(args, paste0("offset=", input$ReduceDimensionBinOffset))
+			args <- c(args, paste0("fun=", input$ReduceDimensionBinFunction))
+		} else if ( input$ReduceDimensionMethod %in% c("resample") ) {
+			args <- c(args, paste0("step=", input$ReduceDimensionResampleStep))
+			args <- c(args, paste0("offset=", input$ReduceDimensionResampleOffset))
+		}
+		args <- do.call(paste, as.list(c(args, sep=", ")))
+		textInput("ReduceDimensionCall", "R function that will be applied:",
+			value=paste0("reduceDimension(", args, ")"))
+	})
+
+	observe({
+		if ( input$ReduceDimensionPreview > 0 ) {
+			isolate(modal$Process <- "reduce-dimension")
+			isolate(trigger$MassSpectrum <- trigger$MassSpectrum + 1)
+		}
+	})
+
+	#### Standardize Samples ####
+	##---------------------------
+
+	output$StandardizeSamplesCall <- renderUI({
+		args <- input$Dataset_0
+		args <- c(args, paste0("method='", input$StandardizeSamplesMethod, "'"))
+		if ( input$StandardizeSamplesMethod %in% c("sum") ) {
+			if ( input$StandardizeSamplesSumType == "% of Pixels" ) {
+				args <- c(args, paste0("sum=",
+					input$StandardizeSamplesSum / 100, " * ncol(", input$Dataset_0, ")"))
+			} else {
+				args <- c(args, paste0("sum=", input$StandardizeSamplesSum))
+			}
+		}
+		args <- do.call(paste, as.list(c(args, sep=", ")))
+		textInput("StandardizeSamplesCall", "R function that will be applied:",
+			value=paste0("standardizeSamples(", args, ")"))
+	})
 
 	# shinyFileChoose(input, "File", session=session, roots=c(Home="~"))
 

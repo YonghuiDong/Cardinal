@@ -25,6 +25,8 @@ standardizeSamples.sum(x, sum=length(x), \dots)
     \item{sum}{The value to which to standardize the sum of the ion image intensity values.}
 }
 \details{
+    Unlike most other processing methods, \code{standardizeSamples} operates on the feature space (ion images) of the dataset.
+
     Standardization is usually performed using the provided functions, but a user-created function can also be passed to \code{method}. In this case it should take the following arguments:
 
     \itemize{
