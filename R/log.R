@@ -1,4 +1,27 @@
 
+#### Allow editing of .Cardinal environment ####
+## ---------------------------------------------
+
+.create.message <- function(name, message) {
+	.Cardinal$message[[name]] <- message
+}
+
+.destroy.message <- function(name) {
+	.Cardinal$message[[name]] <- NULL
+}
+
+.create.progress <- function(name, start, increment, stop) {
+	.Cardinal$progress$start[[name]] <- start
+	.Cardinal$progress$increment[[name]] <- increment
+	.Cardinal$progress$stop[[name]] <- stop
+}
+
+.destroy.progress <- function(name) {
+	.Cardinal$progress$start[[name]] <- NULL
+	.Cardinal$progress$increment[[name]] <- NULL
+	.Cardinal$progress$stop[[name]] <- NULL
+}
+
 #### Logging and flushing log to output files ####
 ## -----------------------------------------------
 

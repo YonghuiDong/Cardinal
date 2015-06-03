@@ -4,6 +4,46 @@ require(shiny)
 shinyServer(function(input, output, session) {
 
 
+	######################################################
+	##-------------------- Set up ----------------------##
+	######################################################
+
+	#### Progress bar and message functions ####
+	##------------------------------------------
+	
+	.shiny.message <- function(...) {
+		incProgress(amount=0, message=paste(...))
+		Sys.sleep(1)
+	}
+
+	.shiny.progress.start <- function(..., min=0, max=1) {
+		incProgress(amount=0, message=paste(...))
+	}
+
+	.shiny.progress.increment <- function() {
+		i <- Cardinal:::.Cardinal$progress$i
+		n <- Cardinal:::.Cardinal$progress$max
+		incProgress(amount=1 / n, message=paste("Processing", i, "of", n))
+	}
+
+	.shiny.progress.stop <- function(...) {
+		incProgress(amount=0, message=paste(...))
+	}
+
+	.shiny.active <- function(active=TRUE) {
+		if ( active ) {
+			Cardinal:::.create.message("shiny",
+				message=.shiny.message)
+			Cardinal:::.create.progress("shiny",
+				start=.shiny.progress.start,
+				increment=.shiny.progress.increment,
+				stop=.shiny.progress.stop)
+		} else {
+			Cardinal:::.destroy.message("shiny")
+			Cardinal:::.destroy.progress("shiny")
+		}
+	}
+
 
 	##########################################################
 	##-------------------- Main Panel ----------------------##
@@ -19,16 +59,17 @@ shinyServer(function(input, output, session) {
 	# }
 
 	modal <- reactiveValues(
-		mz=NA,
-		x=NA, y=NA,
-		IonImage="explore",
-		MassSpectrum="explore",
-		Process="none")
+		mz=NA, # save m/z values during modal interaction
+		x=NA, y=NA, # save coordinates during modal interaction
+		CurrentDataset=NULL, # *switch* datasets (not updated)
+		IonImage="explore", # current ion image mode
+		MassSpectrum="explore", # current mass spectrum mode
+		Process="none") # current signal pre-processing *preview*
 
 	trigger <- reactiveValues(
-		Dataset=0,
-		IonImage=0,
-		MassSpectrum=0)
+		Dataset=0, # when *current* dataset needs updating (has been edited)
+		IonImage=0, # when ion image needs updating
+		MassSpectrum=0) # when mass spectrum needs updating
 
 	#### Main Dataset, Ion Image, and Mass Spectrum ####
 	##--------------------------------------------------
@@ -42,7 +83,8 @@ shinyServer(function(input, output, session) {
 	output$Dataset_0 <- renderUI({
 		choices <- unlist(eapply(globalenv(), is, "MSImageSet"))
 		choices <- c("<None>", names(choices)[choices])
-		selectInput("Dataset_0", "Dataset", choices=choices)
+		selectInput("Dataset_0", "Dataset", choices=choices,
+			selected=modal$CurrentDataset)
 	})
 
 	## observe dataset selection and reset inputs on loading new dataset
@@ -592,6 +634,21 @@ shinyServer(function(input, output, session) {
 		if ( input$NormalizePreview	> 0 ) {
 			isolate(modal$Process <- "normalize")
 			isolate(trigger$MassSpectrum <- trigger$MassSpectrum + 1)
+		}
+	})
+
+	observe({
+		if ( input$NormalizeApply > 0 ) {
+			withProgress(value=0, {
+				.shiny.active(TRUE)
+				thecall <- isolate(input$NormalizeCall)
+				cl <- parse(text=thecall)[[1]]
+				x <- eval(cl, envir=globalenv())
+				name <- make.names(paste(isolate(input$Dataset_0), Sys.time()))
+				assign(name, x, envir=globalenv())
+				.shiny.active(FALSE)
+			}, detail="R is busy. Please do not click anything.")
+			isolate(modal$CurrentDataset <- name)
 		}
 	})
 
