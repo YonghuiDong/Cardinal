@@ -53,7 +53,7 @@ shinyServer(function(input, output, session) {
 	#### Set up reactive values needed for server ####
 	##------------------------------------------------
 
-	# IonImage and MassSpectrum = {
+	# IonImage and MassSpectrum modes = {
 	#	explore, select, done-selecting,
 	#	preview-region, preview-annotation
 	# }
@@ -66,10 +66,48 @@ shinyServer(function(input, output, session) {
 		MassSpectrum="explore", # current mass spectrum mode
 		Process="none") # current signal pre-processing *preview*
 
+	ranges <- reactiveValues(
+		IonImage=list(xlim=c(NA,NA), ylim=c(NA,NA), zlim=c(NA,NA)),
+		MassSpectrum=list(xlim=c(NA,NA), ylim=c(NA,NA))
+	)
+
 	trigger <- reactiveValues(
 		Dataset=0, # when *current* dataset needs updating (has been edited)
 		IonImage=0, # when ion image needs updating
 		MassSpectrum=0) # when mass spectrum needs updating
+
+	feature_0 <- reactive({
+		if ( !is.na(input$mz_0) && !is.null(object_0()) ) {
+			features(object_0(), mz=input$mz_0)
+		} else {
+			numeric()
+		}
+	})
+
+	pixel_0 <- reactive({
+		if ( !is.na(input$x_0) && !is.na(input$y_0) && !is.null(object_0()) ) {
+			pixels(object_0(), x=input$x_0, y=input$y_0, sample=input$Sample_0)
+		} else {
+			numeric()
+		}
+	})
+
+	subset_0 <- reactive({
+		if ( input$Sample_0 != "<None>" && !is.null(object_0()) ) {
+			pData(object_0())$sample %in% input$Sample_0	
+		} else {
+			logical()
+		}
+	})
+
+	coord_0 <- reactive({
+		if ( !is.na(input$x_0) && !is.na(input$y_0) ) {
+			substitute(list(italic(x) == xx, italic(y) == yy),
+				env=list(xx=input$x_0, yy=input$y_0))
+		} else {
+			character()
+		}
+	})
 
 	#### Main Dataset, Ion Image, and Mass Spectrum ####
 	##--------------------------------------------------
@@ -96,49 +134,77 @@ shinyServer(function(input, output, session) {
 			updateNumericInput(session, "x_0", value=NA)
 			updateNumericInput(session, "y_0", value=NA)
 			updateSelectInput(session, "Sample_0", choices="<None>")
-			updateNumericInput(session, "IonImageZoom_0", value="100")
+			updateNumericInput(session, "IonImageZoom_0", value=NA)
+			ranges$IonImage <- list(
+				xlim=c(NA,NA),
+				ylim=c(NA,NA),
+				zlim=c(NA,NA))
+			ranges$MassSpectrum <- list(
+				xlim=c(NA,NA),
+				ylim=c(NA,NA))
 		} else {
 			updateNumericInput(session, "mz_0", value=mz(obj)[1])
 			updateNumericInput(session, "x_0", value=coord(obj)[1,"x"])
 			updateNumericInput(session, "y_0", value=coord(obj)[1,"y"])
 			updateSelectInput(session, "Sample_0", choices=sampleNames(obj))
-			updateNumericInput(session, "IonImageZoom_0", value="100")
+			updateNumericInput(session, "IonImageZoom_0", value=100)
+			ranges$IonImage <- list(
+				xlim=range(coord(obj)[["x"]]),
+				ylim=range(coord(obj)[["y"]]),
+				zlim=range(spectra(obj)[1,
+					pData(obj)$sample %in% sampleNames(obj)[1]]))
+			ranges$MassSpectrum <- list(
+				xlim=range(mz(obj)),
+				ylim=range(spectra(obj)[1,
+					pData(obj)$sample %in% sampleNames(obj)[1]]))
 		}
 	})
 
-	## basic parameters for the displayed plots
+	## observe and set basic parameters for the ion image plotting region
 
-	feature_0 <- reactive({
-		features(object_0(), mz=input$mz_0)
+	observe({
+		if ( !is.na(input$IonImageZoom_0) && !is.null(isolate(object_0())) ) {
+			zoom <- input$IonImageZoom_0 / 100
+			xrange <- range(coord(isolate(object_0()))[["x"]])
+			xlim <- c(input$x_0 + (xrange[1] - input$x_0) / zoom,
+				input$x_0 + (xrange[2] - input$x_0) / zoom)
+			isolate(ranges$IonImage$xlim <- xlim)
+		}
 	})
 
-	pixel_0 <- reactive({
-		pixels(object_0(), x=input$x_0, y=input$y_0, sample=input$Sample_0)
+	observe({
+		if ( !is.na(input$IonImageZoom_0) && !is.null(isolate(object_0())) ) {
+			zoom <- input$IonImageZoom_0 / 100
+			yrange <- range(coord(isolate(object_0()))[["y"]])
+			ylim <- c(input$y_0 + (yrange[1] - input$y_0) / zoom,
+				input$y_0 + (yrange[2] - input$y_0) / zoom)
+			isolate(ranges$IonImage$ylim <- ylim)
+		}
 	})
 
-	xlim_0 <- reactive({
-		zoom <- input$IonImageZoom_0 / 100
-		xrange <- range(coord(object_0())[["x"]])
-		c(input$x_0 + (xrange[1] - input$x_0) / zoom,
-			input$x_0 + (xrange[2] - input$x_0) / zoom)
+	observe({
+		if ( !is.na(input$mz_0) && !is.null(isolate(object_0())) ) {
+			zrange <- range(spectra(isolate(object_0()))[isolate(feature_0()),isolate(subset_0())])
+			zlim <- diff(zrange) * input$ColorRegionsRange / 100 + min(zrange)
+			isolate(ranges$IonImage$zlim <- zlim)
+		}
 	})
 
-	ylim_0 <- reactive({
-		zoom <- input$IonImageZoom_0 / 100
-		yrange <- range(coord(object_0())[["y"]])
-		c(input$y_0 + (yrange[1] - input$y_0) / zoom,
-			input$y_0 + (yrange[2] - input$y_0) / zoom)
+	## observe and set basic parameters for the mass spectrum plotting region
+
+	observe({
+		if ( length(pixel_0()) > 0 && !any(is.na(ranges$MassSpectrum$xlim)) && !is.null(isolate(object_0())) ) {
+			features <- features(isolate(object_0()), mz=ranges$MassSpectrum$xlim)
+			ylim <- range(spectra(isolate(object_0()))[features[1]:features[2],pixel_0()])
+			isolate(ranges$MassSpectrum$ylim <- ylim)
+		}
 	})
 
-	zlim_0 <- reactive({
-		zrange <- range(spectra(object_0())[feature_0(),
-			pData(isolate(object_0()))$sample %in% input$Sample_0])
-		diff(zrange) * input$ColorRegionsRange / 100 + min(zrange)
-	})
-
-	coord_0 <- reactive({
-		substitute(list(italic(x) == xx, italic(y) == yy),
-			env=list(xx=input$x_0, yy=input$y_0))
+	observe({
+		if ( length(pixel_0()) > 0 && !is.null(input$MassRange_0) && !is.null(isolate(object_0())) ) {
+			xlim <- input$MassRange_0
+			isolate(ranges$MassSpectrum$xlim <- xlim)
+		}
 	})
 
 	#### Plot and Observe the Ion Image ####
@@ -152,13 +218,15 @@ shinyServer(function(input, output, session) {
 	plotIonImage_0 <- function(...) {
 		image(isolate(object_0()), mz=input$mz_0,
 			main=substitute(italic(m/z) == mz, list(mz=input$mz_0)),
-			xlim=xlim_0(), ylim=ylim_0(), zlim=zlim_0(),
+			xlim=ranges$IonImage$xlim,
+			ylim=ranges$IonImage$ylim,
+			zlim=ranges$IonImage$zlim,
 			strip=FALSE,
 			contrast.enhance=input$ContrastEnhance,
 			smooth.image=input$SmoothImage,
 			colorkey=input$ShowColorkey,
 			col.regions=match.fun(input$ColorRegions)(100),
-			subset=pData(isolate(object_0()))$sample %in% input$Sample_0,
+			subset=subset_0(),
 			...)
 	}
 
@@ -167,7 +235,7 @@ shinyServer(function(input, output, session) {
 			strip=FALSE,
 			colorkey=FALSE,
 			col.regions=rainbow(nlevels(groups), alpha=0.75),
-			subset=pData(isolate(object_0()))$sample %in% input$Sample_0,
+			subset=subset_0(),
 			add=TRUE,
 			...)
 		legend("topleft",
@@ -179,6 +247,7 @@ shinyServer(function(input, output, session) {
 
 	output$IonImage_0 <- renderPlot({
 		trigger$IonImage
+		par(mar=c(3,3,2,1), mgp=c(1.5,0.5,0), cex.axis=1, cex.lab=1)
 		if ( is.na(input$mz_0) || is.null(isolate(object_0())) ) {
 			plotNull()	
 		} else {
@@ -210,7 +279,7 @@ shinyServer(function(input, output, session) {
 				points(input$x_0, input$y_0, pch=4, lwd=2, cex=2, col="white")
 			}
 		}
-	})
+	}, bg="transparent")
 
 	observe({
 		x <- input$IonImageClick_0$x
@@ -231,13 +300,31 @@ shinyServer(function(input, output, session) {
 		}
 	})
 
+	observe({
+		if ( !is.null(input$IonImageDblClick_0) && !is.null(isolate(object_0())))
+			updateNumericInput(session, "IonImageZoom_0", value=100)
+	})
+
+	observe({
+		xmin <- input$IonImageBrush_0$xmin
+		xmax <- input$IonImageBrush_0$xmax
+		ymin <- input$IonImageBrush_0$ymin
+		ymax <- input$IonImageBrush_0$ymax
+		if ( !is.null(xmin) && !is.null(xmax) && !is.null(ymin) && !is.null(ymax) ) {
+			isolate(ranges$IonImage$xlim <- c(xmin, xmax))
+			isolate(ranges$IonImage$ylim <- c(ymin, ymax))
+			updateNumericInput(session, "IonImageZoom_0", value=NA)
+		}
+	})
+
 	#### Plot the Mass Spectrum ####
 	##------------------------------
 
 	plotMassSpectrum_0 <- function(...) {
 		plot(isolate(object_0()), coord=c(x=input$x_0, y=input$y_0, sample=input$Sample_0),
 			main=coord_0(),
-			xlim=input$MassRange_0,
+			xlim=ranges$MassSpectrum$xlim,
+			ylim=ranges$MassSpectrum$ylim,
 			strip=FALSE,
 			col=if (is.null(input$Color_0)) "black" else input$Color_0,
 			...)
@@ -246,7 +333,8 @@ shinyServer(function(input, output, session) {
 	plotMassSpectrumGroups_0 <- function(groups, varLabel=NULL, ...) {
 		plot(isolate(object_0()), coord=c(x=input$x_0, y=input$y_0, sample=input$Sample_0),
 			main=coord_0(),
-			xlim=input$MassRange_0,
+			xlim=ranges$MassSpectrum$xlim,
+			ylim=ranges$MassSpectrum$ylim,
 			strip=FALSE,
 			groups=force(groups),
 			col=rainbow(nlevels(groups)),
@@ -260,6 +348,7 @@ shinyServer(function(input, output, session) {
 
 	output$MassSpectrum_0 <- renderPlot({
 		trigger$MassSpectrum
+		par(mar=c(3,3,2,1), mgp=c(1.5,0.5,0), cex.axis=1, cex.lab=1)
 		if ( is.na(input$x_0) || is.na(input$y_0) || is.null(isolate(object_0())) ) {
 			plotNull()
 		} else if ( length(isolate(pixel_0())) == 0 ) {
@@ -282,7 +371,8 @@ shinyServer(function(input, output, session) {
 			}
 			cl <- parse(text=thecall)[[1]]
 			cl[["pixel"]] <- pixel_0()
-			cl[["xlim"]] <- isolate(input$MassRange_0)
+			cl[["xlim"]] <- isolate(ranges$MassSpectrum$xlim)
+			cl[["ylim"]] <- isolate(ranges$MassSpectrum$ylim)
 			cl[["plot"]] <- TRUE
 			isolate(modal$Process <- "none")
 			eval(cl, envir=globalenv())
@@ -314,12 +404,12 @@ shinyServer(function(input, output, session) {
 				abline(v=input$mz_0, lty=2, lwd=2, col="blue")
 			}
 		}
-	})
+	}, bg="transparent")
 
 	output$MassRange_0 <- renderUI({
 		if ( is.null(object_0()) ) {
 			sliderInput("MassRange_0", label="Mass Range",
-				min=0, max=100, value=c(0,100), step=1, width="100%")	
+				min=0, max=100, value=c(0,100), step=1, width="100%")
 		} else {
 			sliderInput("MassRange_0", label="Mass Range",
 				min=floor(min(mz(object_0()))),
@@ -345,6 +435,18 @@ shinyServer(function(input, output, session) {
 		}
 	})
 
+	observe({
+		if ( !is.null(input$MassSpectrumDblClick_0) && !is.null(isolate(object_0())) )
+			updateSliderInput(session, "MassRange_0", value=range(mz(isolate(object_0()))))
+	})
+
+	observe({
+		xmin <- input$MassSpectrumBrush_0$xmin
+		xmax <- input$MassSpectrumBrush_0$xmax
+		if ( !is.null(xmin) && !is.null(xmax) )
+			updateSliderInput(session, "MassRange_0", value=c(xmin, xmax))
+	})
+
 
 	##########################################################
 	##-------------------- Explore Tab ---------------------##
@@ -359,7 +461,8 @@ shinyServer(function(input, output, session) {
 		image(matrix(1:100, ncol=1), col=match.fun(input$ColorRegions)(100))
 	})
 
-	#### Mass Spectrum Displa Options ####
+	#### Mass Spectrum Display Options ####
+	##-------------------------------------
 
 	output$Color <- renderUI({
 		selectInput("Color_0", "Color", choices=colors(), selected="black")
@@ -397,11 +500,9 @@ shinyServer(function(input, output, session) {
 					isolate(trigger$IonImage <- trigger$IonImage + 1)
 				} else if ( modal$IonImage == "done-selecting" ) {
 					newname <- regions1[which(!regions1 %in% regions2)]
-					coord <- coord(obj)
-					subset <- pData(obj)[["sample"]] == input$Sample_0
-					coord <- coord[subset,c("x","y")]
+					coord <- coord(obj)[subset_0(),c("x","y")]
 					selected <- numeric(ncol(obj))
-					selected[subset] <- sp::point.in.polygon(coord$x, coord$y,
+					selected[subset_0()] <- sp::point.in.polygon(coord$x, coord$y,
 						isolate(modal$x), isolate(modal$y))
 					selected <- selected > 0
 					pData(obj)[[newname]] <- selected

@@ -26,19 +26,25 @@ shinyUI(navbarPage("Cardinal",
 			),
 			fluidRow(
 				column(6,
-					plotOutput("IonImage_0", click="IonImageClick_0"),
+					plotOutput("IonImage_0",
+						click=clickOpts(id="IonImageClick_0"),
+						dblclick=dblclickOpts(id="IonImageDblClick_0"),
+						brush=brushOpts(id="IonImageBrush_0", direction="xy", resetOnNew=TRUE)),
 					fluidRow(
 						column(6,
 							selectInput("Sample_0", "Sample", choices="<None>")
 						),
 						column(6,
-							numericInput("IonImageZoom_0", "Ion Image Zoom %", value=100,
-								min=100, max=1000, step=25)
+							numericInput("IonImageZoom_0", "Ion Image Zoom %", value=NA,
+								min=100, max=500, step=25)
 						)
 					)
 				),
 				column(6,
-					plotOutput("MassSpectrum_0", click="MassSpectrumClick_0"),
+					plotOutput("MassSpectrum_0",
+						click=clickOpts(id="MassSpectrumClick_0"),
+						dblclick=dblclickOpts(id="MassSpectrumDblClick_0"),
+						brush=brushOpts(id="MassSpectrumBrush_0", direction="x", resetOnNew=TRUE)),
 					uiOutput("MassRange_0")
 				)
 			)
