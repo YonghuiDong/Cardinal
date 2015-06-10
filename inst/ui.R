@@ -129,7 +129,8 @@ shinyUI(navbarPage("Cardinal",
 					tabPanel("Mass Spectrum",
 						tabsetPanel(type="tabs",
 							tabPanel("Display Options",
-								uiOutput("Color")
+								uiOutput("Color"),
+								checkboxInput("AutoscaleIntensityRange", "Autoscale intensity range", value=TRUE)
 							),
 
 							#### Select Mass Spectrum Regions ####
@@ -171,6 +172,10 @@ shinyUI(navbarPage("Cardinal",
 					)
 				)
 			),
+
+			#### Manage Tab ####
+
+			# tabPanel("Manage"),
 
 			#### Process Tab ####
 
@@ -392,8 +397,32 @@ shinyUI(navbarPage("Cardinal",
 	#### Workspace Page ####
 
 	tabPanel("Workspace",
-		fluidRow(
-			# shinyFilesButton("File", "􏰀File select􏰀", title="􏰀Please select a file􏰀", multiple=FALSE)
+		# wellPanel(
+		# 	h5("Load datasets"),
+		# 	fluidRow(
+		# 		column(9,
+		# 			textInput("Filepath", label=NULL, value="/path/to/file")
+		# 		),
+		# 		column(3,
+		# 			shinyFilesButton("File", "Browse...", title="􏰀Please select a file􏰀", multiple=FALSE)
+		# 		)
+		# 	)
+		# ),
+		wellPanel(
+			h5("Manage datasets"),
+			fluidRow(
+				column(3,
+					uiOutput("Dataset_1")
+				),
+				column(3,
+					actionButton("Remove_1", "Remove from workspace")
+				)
+			),
+			fluidRow(
+				column(9,
+					verbatimTextOutput("Summary_1")
+				)
+			)
 		)
 	)
 

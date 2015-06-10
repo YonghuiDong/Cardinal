@@ -11,39 +11,38 @@ shinyServer(function(input, output, session) {
 	#### Progress bar and message functions ####
 	##------------------------------------------
 	
-	.shiny.message <- function(...) {
+	shinyMessage <- function(...) {
 		incProgress(amount=0, message=paste(...))
 		Sys.sleep(1)
 	}
 
-	.shiny.progress.start <- function(..., min=0, max=1) {
+	shinyProgressStart <- function(..., min=0, max=1) {
 		incProgress(amount=0, message=paste(...))
 	}
 
-	.shiny.progress.increment <- function() {
+	shinyProgressIncrement <- function() {
 		i <- Cardinal:::.Cardinal$progress$i
 		n <- Cardinal:::.Cardinal$progress$max
 		incProgress(amount=1 / n, message=paste("Processing", i, "of", n))
 	}
 
-	.shiny.progress.stop <- function(...) {
+	shinyProgressStop <- function(...) {
 		incProgress(amount=0, message=paste(...))
 	}
 
-	.shiny.active <- function(active=TRUE) {
+	shinyActive <- function(active=TRUE) {
 		if ( active ) {
 			Cardinal:::.create.message("shiny",
-				message=.shiny.message)
+				message=shinyMessage)
 			Cardinal:::.create.progress("shiny",
-				start=.shiny.progress.start,
-				increment=.shiny.progress.increment,
-				stop=.shiny.progress.stop)
+				start=shinyProgressStart,
+				increment=shinyProgressIncrement,
+				stop=shinyProgressStop)
 		} else {
 			Cardinal:::.destroy.message("shiny")
 			Cardinal:::.destroy.progress("shiny")
 		}
 	}
-
 
 	##########################################################
 	##-------------------- Main Panel ----------------------##
@@ -61,7 +60,7 @@ shinyServer(function(input, output, session) {
 	modal <- reactiveValues(
 		mz=NA, # save m/z values during modal interaction
 		x=NA, y=NA, # save coordinates during modal interaction
-		CurrentDataset=NULL, # *switch* datasets (not updated)
+		Dataset=NULL, # *switch* datasets
 		IonImage="explore", # current ion image mode
 		MassSpectrum="explore", # current mass spectrum mode
 		Process="none") # current signal pre-processing *preview*
@@ -72,7 +71,8 @@ shinyServer(function(input, output, session) {
 	)
 
 	trigger <- reactiveValues(
-		Dataset=0, # when *current* dataset needs updating (has been edited)
+		PixelData=0, # when the pixelData has changed
+		FeatureData=0, # when the featureData has changed
 		IonImage=0, # when ion image needs updating
 		MassSpectrum=0) # when mass spectrum needs updating
 
@@ -114,16 +114,16 @@ shinyServer(function(input, output, session) {
 
 	## create main dataset object getter and dataset selection
 
-	object_0 <- function() {
-		tryCatch(get(input$Dataset_0), error=function(e) NULL)
-	}
-
 	output$Dataset_0 <- renderUI({
 		choices <- unlist(eapply(globalenv(), is, "MSImageSet"))
 		choices <- c("<None>", names(choices)[choices])
 		selectInput("Dataset_0", "Dataset", choices=choices,
-			selected=modal$CurrentDataset)
+			selected=modal$Dataset)
 	})
+
+	object_0 <- function() {
+		tryCatch(get(input$Dataset_0), error=function(e) NULL)
+	}
 
 	## observe dataset selection and reset inputs on loading new dataset
 
@@ -152,11 +152,11 @@ shinyServer(function(input, output, session) {
 				xlim=range(coord(obj)[["x"]]),
 				ylim=range(coord(obj)[["y"]]),
 				zlim=range(spectra(obj)[1,
-					pData(obj)$sample %in% sampleNames(obj)[1]]))
+					pData(obj)$sample %in% sampleNames(obj)[1]]), na.rm=TRUE)
 			ranges$MassSpectrum <- list(
 				xlim=range(mz(obj)),
 				ylim=range(spectra(obj)[1,
-					pData(obj)$sample %in% sampleNames(obj)[1]]))
+					pData(obj)$sample %in% sampleNames(obj)[1]]), na.rm=TRUE)
 		}
 	})
 
@@ -184,7 +184,7 @@ shinyServer(function(input, output, session) {
 
 	observe({
 		if ( !is.na(input$mz_0) && !is.null(isolate(object_0())) ) {
-			zrange <- range(spectra(isolate(object_0()))[isolate(feature_0()),isolate(subset_0())])
+			zrange <- range(spectra(isolate(object_0()))[isolate(feature_0()),isolate(subset_0())], na.rm=TRUE)
 			zlim <- diff(zrange) * input$ColorRegionsRange / 100 + min(zrange)
 			isolate(ranges$IonImage$zlim <- zlim)
 		}
@@ -195,8 +195,13 @@ shinyServer(function(input, output, session) {
 	observe({
 		if ( length(pixel_0()) > 0 && !any(is.na(ranges$MassSpectrum$xlim)) && !is.null(isolate(object_0())) ) {
 			features <- features(isolate(object_0()), mz=ranges$MassSpectrum$xlim)
-			ylim <- range(spectra(isolate(object_0()))[features[1]:features[2],pixel_0()])
-			isolate(ranges$MassSpectrum$ylim <- ylim)
+			if ( input$AutoscaleIntensityRange ) {
+				ylim <- range(spectra(isolate(object_0()))[features[1]:features[2],pixel_0()], na.rm=TRUE)
+				isolate(ranges$MassSpectrum$ylim <- ylim)
+			} else {
+				ylim <- range(spectra(isolate(object_0()))[,pixel_0()], na.rm=TRUE)
+				isolate(ranges$MassSpectrum$ylim <- ylim)
+			}
 		}
 	})
 
@@ -247,7 +252,7 @@ shinyServer(function(input, output, session) {
 
 	output$IonImage_0 <- renderPlot({
 		trigger$IonImage
-		par(mar=c(3,3,2,1), mgp=c(1.5,0.5,0), cex.axis=1, cex.lab=1)
+		par(mar=c(3,3,3,1), mgp=c(1.5,0.5,0), cex.axis=1, cex.lab=1)
 		if ( is.na(input$mz_0) || is.null(isolate(object_0())) ) {
 			plotNull()	
 		} else {
@@ -348,12 +353,13 @@ shinyServer(function(input, output, session) {
 
 	output$MassSpectrum_0 <- renderPlot({
 		trigger$MassSpectrum
-		par(mar=c(3,3,2,1), mgp=c(1.5,0.5,0), cex.axis=1, cex.lab=1)
+		par(mar=c(3,3,3,1), mgp=c(1.5,0.5,0), cex.axis=1, cex.lab=1)
 		if ( is.na(input$x_0) || is.na(input$y_0) || is.null(isolate(object_0())) ) {
 			plotNull()
 		} else if ( length(isolate(pixel_0())) == 0 ) {
 			plotNull()
 		} else if ( isolate(modal$Process != "none") ) {
+			input$x_0; input$y_0; input$Sample_0; input$Color_0 # take dependencies
 			if ( isolate(modal$Process == "normalize") ) {
 				thecall <- isolate(input$NormalizeCall)
 			} else if ( isolate(modal$Process == "smooth-signal") ) {
@@ -371,8 +377,8 @@ shinyServer(function(input, output, session) {
 			}
 			cl <- parse(text=thecall)[[1]]
 			cl[["pixel"]] <- pixel_0()
-			cl[["xlim"]] <- isolate(ranges$MassSpectrum$xlim)
-			cl[["ylim"]] <- isolate(ranges$MassSpectrum$ylim)
+			cl[["xlim"]] <- ranges$MassSpectrum$xlim
+			cl[["ylim"]] <- ranges$MassSpectrum$ylim
 			cl[["plot"]] <- TRUE
 			isolate(modal$Process <- "none")
 			eval(cl, envir=globalenv())
@@ -477,7 +483,7 @@ shinyServer(function(input, output, session) {
 	}
 
 	output$SelectIonImageRegions <- renderUI({
-		trigger$Dataset
+		trigger$PixelData
 		if ( is.null(object_0()) ) {
 			selectizeInput("SelectIonImageRegions", "Select a region", choices=NULL)
 		} else {
@@ -507,7 +513,7 @@ shinyServer(function(input, output, session) {
 					selected <- selected > 0
 					pData(obj)[[newname]] <- selected
 					assign(isolate(input$Dataset_0), obj, envir=globalenv())
-					isolate(trigger$Dataset <- trigger$Dataset + 1)
+					isolate(trigger$PixelData <- trigger$PixelData + 1)
 					modal$IonImage <- "preview-region"
 					isolate(trigger$IonImage <- trigger$IonImage + 1)
 
@@ -534,7 +540,7 @@ shinyServer(function(input, output, session) {
 	}
 
 	output$SelectIonImageAnnotations <- renderUI({
-		trigger$Dataset
+		trigger$PixelData
 		if ( is.null(object_0()) ) {
 			selectizeInput("SelectIonImageAnnotations", "Create an annotation", choices=NULL)
 		} else {
@@ -555,7 +561,7 @@ shinyServer(function(input, output, session) {
 				annotation <- do.call(Cardinal:::make.annotation, regions)
 				pData(obj)[[anno1]] <- annotation
 				assign(isolate(input$Dataset_0), obj, envir=globalenv())
-				isolate(trigger$Dataset <- trigger$Dataset + 1)
+				isolate(trigger$PixelData <- trigger$PixelData + 1)
 				modal$IonImage <- "preview-annotation"
 				isolate(trigger$IonImage <- trigger$IonImage + 1)
 			}
@@ -578,7 +584,7 @@ shinyServer(function(input, output, session) {
 	}
 
 	output$SelectMassSpectrumRegions <- renderUI({
-		trigger$Dataset
+		trigger$FeatureData
 		if ( is.null(object_0()) ) {
 			selectizeInput("SelectMassSpectrumRegions", "Select a region", choices=NULL)
 		} else {
@@ -604,7 +610,7 @@ shinyServer(function(input, output, session) {
 					selected <- mz[1] < mz(obj) & mz(obj) < mz[2]
 					fData(obj)[[newname]] <- selected
 					assign(isolate(input$Dataset_0), obj, envir=globalenv())
-					isolate(trigger$Dataset <- trigger$Dataset + 1)
+					isolate(trigger$FeatureData <- trigger$FeatureData + 1)
 					modal$MassSpectrum <- "preview-region"
 					isolate(trigger$MassSpectrum <- trigger$MassSpectrum + 1)
 				}
@@ -640,7 +646,7 @@ shinyServer(function(input, output, session) {
 				annotation <- do.call(Cardinal:::make.annotation, regions)
 				fData(obj)[[anno1]] <- annotation
 				assign(isolate(input$Dataset_0), obj, envir=globalenv())
-				isolate(trigger$Dataset <- trigger$Dataset + 1)
+				isolate(trigger$FeatureData <- trigger$FeatureData + 1)
 				modal$MassSpectrum <- "preview-annotation"
 				isolate(trigger$MassSpectrum <- trigger$MassSpectrum + 1)
 			}
@@ -655,7 +661,7 @@ shinyServer(function(input, output, session) {
 	})
 
 	output$SelectMassSpectrumAnnotations <- renderUI({
-		trigger$Dataset
+		trigger$FeatureData
 		if ( is.null(object_0()) ) {
 			selectizeInput("SelectMassSpectrumAnnotations", "Create an annotation", choices=NULL)
 		} else {
@@ -741,15 +747,18 @@ shinyServer(function(input, output, session) {
 	observe({
 		if ( input$NormalizeApply > 0 ) {
 			withProgress(value=0, {
-				.shiny.active(TRUE)
+				shinyActive(TRUE)
 				thecall <- isolate(input$NormalizeCall)
 				cl <- parse(text=thecall)[[1]]
 				x <- eval(cl, envir=globalenv())
 				name <- make.names(paste(isolate(input$Dataset_0), Sys.time()))
-				assign(name, x, envir=globalenv())
-				.shiny.active(FALSE)
+				assign(name, isolate(object_0()), envir=globalenv())
+				assign(isolate(input$Dataset_0), x, envir=globalenv())
+				shinyActive(FALSE)
 			}, detail="R is busy. Please do not click anything.")
-			isolate(modal$CurrentDataset <- name)
+			isolate(modal$Dataset <- isolate(input$Dataset_0))
+			isolate(trigger$IonImage <- trigger$IonImage + 1)
+			isolate(trigger$MassSpectrum <- trigger$MassSpectrum + 1)
 		}
 	})
 
@@ -930,6 +939,27 @@ shinyServer(function(input, output, session) {
 		args <- do.call(paste, as.list(c(args, sep=", ")))
 		textInput("StandardizeSamplesCall", "R function that will be applied:",
 			value=paste0("standardizeSamples(", args, ")"))
+	})
+
+
+	#########################################################
+	##-------------------- Workspace ----------------------##
+	#########################################################
+
+	output$Dataset_1 <- renderUI({
+		choices <- unlist(eapply(globalenv(), is, "MSImageSet"))
+		choices <- c("<None>", names(choices)[choices])
+		selectInput("Dataset_1", label=NULL, choices=choices,
+			selected=input$Dataset_0)
+	})
+
+	object_1 <- function() {
+		tryCatch(get(input$Dataset_1), error=function(e) NULL)
+	}
+
+	output$Summary_1 <- renderPrint({
+		if ( !is.null(object_1()) )
+			print(object_1())
 	})
 
 	# shinyFileChoose(input, "File", session=session, roots=c(Home="~"))
