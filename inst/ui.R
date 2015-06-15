@@ -1,5 +1,6 @@
 
 require(shiny)
+require(Cardinal)
 
 shinyUI(navbarPage("Cardinal",
 
@@ -171,6 +172,7 @@ shinyUI(navbarPage("Cardinal",
 						)
 					)
 				)
+				# verbatimTextOutput("Summary_0")
 			),
 
 			#### Manage Tab ####
@@ -272,7 +274,7 @@ shinyUI(navbarPage("Cardinal",
 							numericInput("PeakAlignDiffMax", "Diff Max",
 								min=1, max=10000, value=200, step=1),
 							selectInput("PeakAlignUnits", "Units",
-								choices=c("'ppm'", "'mz'"))
+								choices=c("ppm", "mz"))
 						),
 						conditionalPanel(
 							condition="input.PeakAlignMethod == 'DP'",
@@ -318,7 +320,7 @@ shinyUI(navbarPage("Cardinal",
 							condition="input.ReduceDimensionMethod == 'peaks'",
 							uiOutput("ReduceDimensionPeakReference"),
 							selectInput("ReduceDimensionPeakType", "Type",
-								choices=c("'height'", "'area'"))
+								choices=c("height", "area"))
 						),
 						conditionalPanel(
 							condition="input.ReduceDimensionMethod == 'bin'",
@@ -374,12 +376,43 @@ shinyUI(navbarPage("Cardinal",
 			tabPanel("Analyze",
 				navlistPanel(
 					"Multivariate",
-					tabPanel("PCA"),
+					tabPanel("PCA",
+						tabsetPanel(type="pills",
+							tabPanel("Fit",
+								textInput("PCANumberOfComponents", "Number of Components",
+									"1,2,3,4,5"),
+								selectInput("PCAMethod", "Method",
+									choices=c("irlba", "svd")),
+								checkboxInput("PCAScale", "Scale", value=FALSE),
+								actionButton("PCAFitApply", "Apply"),
+								hr(),
+								wellPanel(
+									uiOutput("PCAFitCall"),
+									helpText("Warning: This is the exact function
+										that will be applied to the dataset. Edit
+										at your own risk.")
+								)
+							),
+							tabPanel("Predict",
+								uiOutput("PCAPredictObject"),
+								actionButton("PCAPredictApply", "Apply"),
+								hr(),
+								wellPanel(
+									uiOutput("PCAPredictCall"),
+									helpText("Warning: This is the exact function
+										that will be applied to the dataset. Edit
+										at your own risk.")
+								)
+							)
+						)
+					),
 					tabPanel("PLS"),
 					tabPanel("O-PLS"),
 					"Clustering + Classification",
 					tabPanel("Spatial K-Means"),
-					tabPanel("Spatial Shrunken Centroids")
+					tabPanel("Spatial Shrunken Centroids"),
+					"Cross-Validation",
+					tabPanel("N-fold Cross-Validation")
 				)
 			),
 

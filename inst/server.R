@@ -1,5 +1,9 @@
 
 require(shiny)
+require(Cardinal)
+
+library(CardinalWorkflows)
+data(pig206)
 
 shinyServer(function(input, output, session) {
 
@@ -116,7 +120,7 @@ shinyServer(function(input, output, session) {
 
 	output$Dataset_0 <- renderUI({
 		choices <- unlist(eapply(globalenv(), is, "MSImageSet"))
-		choices <- c("<None>", names(choices)[choices])
+		choices <- c("<None>", sort(names(choices)[choices]))
 		selectInput("Dataset_0", "Dataset", choices=choices,
 			selected=modal$Dataset)
 	})
@@ -719,6 +723,13 @@ shinyServer(function(input, output, session) {
 		}
 	)
 
+	#### Dataset Summary ####
+	##-----------------------
+
+	# output$Summary_0 <- renderPrint({
+	# 	if ( !is.null(object_0()) )
+	# 		print(summary(object_0()))
+	# })
 
 
 	##########################################################
@@ -843,7 +854,7 @@ shinyServer(function(input, output, session) {
 		args <- c(args, paste0("method='", input$PeakAlignMethod, "'"))
 		if ( input$PeakAlignMethod %in% "diff" ) {
 			args <- c(args, paste0("diff.max=", input$PeakAlignDiffMax))
-			args <- c(args, paste0("units=", input$PeakAlignUnits))
+			args <- c(args, paste0("units='", input$PeakAlignUnits, "'"))
 		} else if ( input$PeakAlignMethod %in% "DP" )
 			args <- c(args, paste0("gap=", input$PeakAlignGap))
 		args <- do.call(paste, as.list(c(args, sep=", ")))
@@ -898,15 +909,15 @@ shinyServer(function(input, output, session) {
 	output$ReduceDimensionCall <- renderUI({
 		args <- input$Dataset_0
 		args <- c(args, paste0("method='", input$ReduceDimensionMethod, "'"))
-		if ( input$ReduceDimensionMethod %in% c("peaks") ) {
+		if ( input$ReduceDimensionMethod == "peaks" ) {
 			if ( !is.null(input$ReduceDimensionPeakReference) && input$ReduceDimensionPeakReference != "<None>" )
 				args <- c(args, paste0("ref=", input$ReduceDimensionPeakReference))
-			args <- c(args, paste0("type=", input$ReduceDimensionPeakType))
-		} else if ( input$ReduceDimensionMethod %in% c("bin") ) {
+			args <- c(args, paste0("type='", input$ReduceDimensionPeakType, "'"))
+		} else if ( input$ReduceDimensionMethod == "bin" ) {
 			args <- c(args, paste0("width=", input$ReduceDimensionBinWidth))
 			args <- c(args, paste0("offset=", input$ReduceDimensionBinOffset))
 			args <- c(args, paste0("fun=", input$ReduceDimensionBinFunction))
-		} else if ( input$ReduceDimensionMethod %in% c("resample") ) {
+		} else if ( input$ReduceDimensionMethod == "resample" ) {
 			args <- c(args, paste0("step=", input$ReduceDimensionResampleStep))
 			args <- c(args, paste0("offset=", input$ReduceDimensionResampleOffset))
 		}
@@ -941,6 +952,39 @@ shinyServer(function(input, output, session) {
 			value=paste0("standardizeSamples(", args, ")"))
 	})
 
+	##########################################################
+	##-------------------- Analyze Tab ---------------------##
+	##########################################################
+
+
+	#### PCA ####
+	##-----------
+
+	output$PCAFitCall <- renderUI({
+		args <- input$Dataset_0
+		args <- c(args, paste0("ncomp=c(", input$PCANumberOfComponents, ")"))
+		args <- c(args, paste0("method='", input$PCAMethod, "'"))
+		args <- c(args, paste0("scale=", input$PCAScale))
+		args <- do.call(paste, as.list(c(args, sep=", ")))
+		textInput("PCAFitCall", "R function that will be applied:",
+			value=paste0("PCA(", args, ")"))
+	})
+
+	output$PCAPredictObject <- renderUI({
+		choices <- unlist(eapply(globalenv(), is, "PCA"))
+		choices <- c("<None>", sort(names(choices)[choices]))
+		selectInput("PCAPredictObject", label="Fitted Object", choices=sort(choices))
+	})
+
+	output$PCAPredictCall <- renderUI({
+		args <- input$PCAPredictObject
+		args <- c(args, paste0("newx=", input$Dataset_0))
+		args <- do.call(paste, as.list(c(args, sep=", ")))
+		textInput("PCAFitCall", "R function that will be applied:",
+			value=paste0("predict(", args, ")"))
+	})
+
+
 
 	#########################################################
 	##-------------------- Workspace ----------------------##
@@ -948,8 +992,8 @@ shinyServer(function(input, output, session) {
 
 	output$Dataset_1 <- renderUI({
 		choices <- unlist(eapply(globalenv(), is, "MSImageSet"))
-		choices <- c("<None>", names(choices)[choices])
-		selectInput("Dataset_1", label=NULL, choices=choices,
+		choices <- c("<None>", sort(names(choices)[choices]))
+		selectInput("Dataset_1", label=NULL, choices=sort(choices),
 			selected=input$Dataset_0)
 	})
 
