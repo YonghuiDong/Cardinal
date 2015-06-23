@@ -973,7 +973,7 @@ shinyServer(function(input, output, session) {
 	output$PCAPredictObject <- renderUI({
 		choices <- unlist(eapply(globalenv(), is, "PCA"))
 		choices <- c("<None>", sort(names(choices)[choices]))
-		selectInput("PCAPredictObject", label="Fitted Object", choices=sort(choices))
+		selectInput("PCAPredictObject", label="Fitted Object", choices=choices)
 	})
 
 	output$PCAPredictCall <- renderUI({
@@ -985,6 +985,127 @@ shinyServer(function(input, output, session) {
 	})
 
 
+	##########################################################
+	##-------------------- Results Tab ---------------------##
+	##########################################################
+
+	output$ResultsObject <- renderUI({
+		choices <- unlist(eapply(globalenv(), is, "ResultSet"))
+		choices <- c("<None>", sort(names(choices)[choices]))
+		selectInput("ResultsObject", label="Results", choices=choices)
+	})
+
+	resultsObject <- function() {
+		tryCatch(get(input$ResultsObject), error=function(e) NULL)
+	}
+
+	# output$ResultsType <- reactive({
+	# 	class(resultsObject())
+	# })
+
+	# outputOptions(output, "ResultsType", suspendWhenHidden=FALSE)
+
+	output$ResultsModel <- renderUI({
+		if ( is.null(resultsObject()) ) {
+			choices <- ""
+		} else {
+			choices <- rownames(modelData(resultsObject()))
+		}
+		selectInput("ResultsModel", label="Model", choices=choices)
+	})
+
+	output$ResultsPixelMode <- renderUI({
+		choices <- sapply(resultsObject()[[input$ResultsModel]], function(r) {
+			if ( is.matrix(r) ) {
+				nrow(r)
+			} else {
+				length(r)
+			}
+		})
+		choices <- names(choices)[choices == ncol(resultsObject())]
+		selectInput("ResultsPixelMode", label="Pixel Mode", choices=choices)
+	})
+
+	output$ResultsPixelColumn <- renderUI({
+		if ( is.null(resultsObject()) ) {
+			choices <- ""
+		} else {
+			res <- resultsObject()[[input$ResultsModel]][[input$ResultsPixelMode]]
+			if ( is.matrix(res) ) {
+				choices <- colnames(res)
+			} else {
+				choices <- as.character(sort(unique(res)))
+			}
+		}
+		selectInput("ResultsPixelColumn", label="Column", choices=choices,
+			selected=choices, multiple=TRUE)
+	})
+
+	output$ResultsFeatureMode <- renderUI({
+		choices <- sapply(resultsObject()[[input$ResultsModel]], function(r) {
+			if ( is.matrix(r) ) {
+				nrow(r)
+			} else {
+				length(r)
+			}
+		})
+		choices <- names(choices)[choices == nrow(resultsObject())]
+		selectInput("ResultsFeatureMode", label="Mode", choices=choices)
+	})
+
+	output$ResultsFeatureColumn <- renderUI({
+		if ( is.null(resultsObject()) ) {
+			choices <- ""
+		} else {
+			res <- resultsObject()[[input$ResultsModel]][[input$ResultsFeatureMode]]
+			if ( is.matrix(res) ) {
+				choices <- colnames(res)
+			} else {
+				choices <- as.character(sort(unique(res)))
+			}
+		}
+		selectInput("ResultsFeatureColumn", label="Column", choices=choices,
+			selected=choices, multiple=TRUE)
+	})
+
+	output$ResultsImage <- renderPlot({
+		par(mar=c(3,3,3,1), mgp=c(1.5,0.5,0), cex.axis=1, cex.lab=1)
+		if ( is.null(resultsObject()) ) {
+			plotNull()
+		} else {
+			column <- input$ResultsPixelColumn
+			if ( is.null(column) || column == "" ) {
+				image(resultsObject(),
+					model=input$ResultsModel,
+					mode=input$ResultsPixelMode)
+			} else {
+				image(resultsObject(),
+					model=input$ResultsModel,
+					mode=input$ResultsPixelMode,
+					column=input$ResultsPixelColumn)
+			}
+		}
+	}, bg="transparent")
+
+	output$ResultsPlot <- renderPlot({
+		par(mar=c(3,3,3,1), mgp=c(1.5,0.5,0), cex.axis=1, cex.lab=1)
+		if ( is.null(resultsObject()) ) {
+			plotNull()
+		} else {
+			column <- input$ResultsFeatureColumn
+			if ( is.null(column) || column == "" ) {
+				plot(resultsObject(),
+					model=input$ResultsModel,
+					mode=input$ResultsFeatureMode)
+			} else {
+				plot(resultsObject(),
+					model=input$ResultsModel,
+					mode=input$ResultsFeatureMode,
+					column=input$ResultsFeatureColumn)
+			}
+		}
+	}, bg="transparent")
+
 
 	#########################################################
 	##-------------------- Workspace ----------------------##
@@ -993,7 +1114,7 @@ shinyServer(function(input, output, session) {
 	output$Dataset_1 <- renderUI({
 		choices <- unlist(eapply(globalenv(), is, "MSImageSet"))
 		choices <- c("<None>", sort(names(choices)[choices]))
-		selectInput("Dataset_1", label=NULL, choices=sort(choices),
+		selectInput("Dataset_1", label=NULL, choices=choices,
 			selected=input$Dataset_0)
 	})
 

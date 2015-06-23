@@ -36,7 +36,7 @@ shinyUI(navbarPage("Cardinal",
 							selectInput("Sample_0", "Sample", choices="<None>")
 						),
 						column(6,
-							numericInput("IonImageZoom_0", "Ion Image Zoom %", value=NA,
+							numericInput("IonImageZoom_0", "Image Zoom %", value=NA,
 								min=100, max=500, step=25)
 						)
 					)
@@ -419,10 +419,38 @@ shinyUI(navbarPage("Cardinal",
 			#### Results Tab ####
 
 			tabPanel("Results",
-					selectInput("Results",
-						"Results",
-						choices="<None>",
-						selected="<None>")
+				fluidRow(
+					column(3,
+						uiOutput("ResultsObject")
+					),
+					column(3,
+						uiOutput("ResultsModel")
+					)
+				),
+				wellPanel(
+					fluidRow(
+						column(3,
+							uiOutput("ResultsPixelMode")
+						),
+						column(3,
+							uiOutput("ResultsPixelColumn")
+						),
+						column(3,
+							uiOutput("ResultsFeatureMode")
+						),
+						column(3,
+							uiOutput("ResultsFeatureColumn")
+						)
+					),
+					fluidRow(
+						column(6,
+							plotOutput("ResultsImage")
+						),
+						column(6,
+							plotOutput("ResultsPlot")
+						)
+					)
+				)
 			)
 		)
 	),
